@@ -2,7 +2,7 @@
 
 > 该工具用于下载喜马拉雅歌曲资源，可以下载单个音频资源，也可以下载整个专辑. 喜欢的请打个红心!!!
 
-<a href="https://asciinema.org/a/14"><img src="https://asciinema.org/a/14.png" width="836"/></a>
+<a href="https://asciinema.org/a/4jz6NqQIeLZL7weqpZDQ17Wi6"><img src="https://asciinema.org/a/4jz6NqQIeLZL7weqpZDQ17Wi6.png" width="836"/></a>
 
 ## 安装
 
