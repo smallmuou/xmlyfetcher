@@ -2,6 +2,10 @@
 
 > 该工具用于下载喜马拉雅歌曲资源，可以下载单个音频资源，也可以下载整个专辑. 喜欢的请打个红心!!!
 
+<p>This is some text.</p>
+<script src="https://asciinema.org/a/14.js" id="asciicast-14" async></script>
+<p>This is some other text.</p>
+
 ## 安装
 
 1. 安装jshon
