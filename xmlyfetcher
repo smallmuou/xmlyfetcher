@@ -147,7 +147,10 @@ fetch() {
 }
 
 if [ "${1:0:4}" == "http" ];then
-    ids=`curl -s $1 |awk -F\" '/sound_ids/{print $4}'|sed 's/,/ /g'`
+    # ids=`curl -s $1 |awk -F\" '/sound_ids/{print $4}'|sed 's/,/ /g'`
+
+    # fix on 2018.8.14
+    ids=`curl -s $1|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
 else 
     [ $# -eq 0 ] && usage
     ids=$@
