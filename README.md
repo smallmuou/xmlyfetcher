@@ -30,15 +30,15 @@ sudo chmod +x /usr/local/bin/xmlyfetcher
 
 ```bash
 # 下载专辑
-xmlyfetcher http://www.ximalaya.com/10553948/album/260744/
+xmlyfetcher https://www.ximalaya.com/ertong/260744/
 
 # 下载单个歌曲
 xmlyfetcher 76515823
 
 # 下载到指定目录
-xmlyfetcher -o ~/Downloads http://www.ximalaya.com/10553948/album/260744/
+xmlyfetcher -o ~/Downloads https://www.ximalaya.com/ertong/260744/
 ```
-PS: 可以使用`xmlyfetcher -h`查看更详细的帮助
+PS: 可以使用`xmlyfetcher -h`查看更详细的帮助，注意以上地址是当前有效地址，可能会失效，请从喜马拉雅官网获取最新地址
 
 ## 许可
 
