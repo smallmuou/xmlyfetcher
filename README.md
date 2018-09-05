@@ -13,7 +13,7 @@ wget http://kmkeen.com/jshon/jshon.tar.gz
 tar xzvf json.tar.gz
 cd jshon-20120914
 make
-sudo make install
+sudo cp jshon /usr/local/bin/
 ```
 PS: jshon下载地址可能会变更，请根据官网提示下载.
 
