@@ -94,7 +94,8 @@ OPTIONS:
     -o      Assign output directory, if not assign, it will download current directory.
 
 EXAMPLES:
-    $prog http://www.ximalaya.com/10553948/album/260744/
+    $prog http://www.ximalaya.com/10553948/album/260744/        - download all page of this album
+    $prog http://www.ximalaya.com/10553948/album/260744/p2/     - only download page2
     $prog 76515823
     $prog -o ~/Downloads http://www.ximalaya.com/10553948/album/260744/
 
@@ -137,7 +138,7 @@ fetch() {
         id=`echo $result|jshon -e trackId|sed 's/\"//g'`
         url64=`echo $result|jshon -e playUrl64|sed 's/\"//g'|sed 's/\\\//g'`
 
-        info "fetch $id $title ..."
+        info "Fetch $id $title ..."
         if [ -n "$url64" ];then
             wget "$url64" -O "$dst_dir/$title.mp3"
         fi
@@ -149,13 +150,34 @@ fetch() {
 if [ "${1:0:4}" == "http" ];then
     # ids=`curl -s $1 |awk -F\" '/sound_ids/{print $4}'|sed 's/,/ /g'`
 
+    # append / to url
+    url=$1
+    [ -z "`echo -n $url|sed -n '/\/$/p'`" ] && url="$url/"
+
     # fix on 2018.8.14
-    ids=`curl -s $1|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
+    # check if contain page
+    assign_page=`echo -n $1|sed -n '/.*\/p[0-9]\{1,\}/p'`
+    if [ -n "$assign_page" ];then
+        ids=`curl -s $url|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
+    else
+        tracks_info=`curl -s $url|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|jshon -e tracksInfo`
+        total=`echo $tracks_info|jshon -e trackTotalCount`
+        page_size=`echo $tracks_info|jshon -e pageSize`
+        page_count=`expr $total / $page_size`
+        [ `expr $total % $page_size` -ne 0 ]&&let page_count++;
+
+        for((i=1;i<=$page_count;i++));
+        do 
+            info "Parse page ${i}/${page_count} ..."
+            ids="$ids `curl -s "${url}p${i}/"|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`"
+        done
+    fi
 else 
     [ $# -eq 0 ] && usage
     ids=$@
 fi
 
+info "Contain `echo $ids|wc -w|sed 's/^ *//g'` track(s), start fetch ..."
 for id in $ids
 do
     fetch $id
