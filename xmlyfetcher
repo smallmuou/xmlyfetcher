@@ -158,9 +158,9 @@ if [ "${1:0:4}" == "http" ];then
     # check if contain page
     assign_page=`echo -n $1|sed -n '/.*\/p[0-9]\{1,\}/p'`
     if [ -n "$assign_page" ];then
-        ids=`curl -s $url|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
+        ids=`curl -s $url|sed -n 's/.*AlbumDetailTrackList":\(.*\)};<\/script>.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
     else
-        tracks_info=`curl -s $url|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|jshon -e tracksInfo`
+        tracks_info=`curl -s $url|sed -n 's/.*AlbumDetailTrackList":\(.*\)};<\/script>.*$/\1/p'|jshon -e tracksInfo`
         total=`echo $tracks_info|jshon -e trackTotalCount`
         page_size=`echo $tracks_info|jshon -e pageSize`
         page_count=`expr $total / $page_size`
@@ -169,7 +169,7 @@ if [ "${1:0:4}" == "http" ];then
         for((i=1;i<=$page_count;i++));
         do 
             info "Parse page ${i}/${page_count} ..."
-            ids="$ids `curl -s "${url}p${i}/"|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`"
+            ids="$ids `curl -s "${url}p${i}/"|sed -n 's/.*AlbumDetailTrackList":\(.*\)};<\/script>.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`"
         done
     fi
 else 
