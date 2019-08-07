@@ -63,7 +63,7 @@ myos() {
 ###           GROBLE DEFINE           ###
 #########################################
 
-VERSION=1.0.1
+VERSION=1.0.2
 AUTHOR=smallmuou
 
 #########################################
@@ -148,19 +148,17 @@ fetch() {
 }
 
 if [ "${1:0:4}" == "http" ];then
-    # ids=`curl -s $1 |awk -F\" '/sound_ids/{print $4}'|sed 's/,/ /g'`
-
     # append / to url
     url=$1
     [ -z "`echo -n $url|sed -n '/\/$/p'`" ] && url="$url/"
 
-    # fix on 2018.8.14
+    # fix on 2019.8.7
     # check if contain page
     assign_page=`echo -n $1|sed -n '/.*\/p[0-9]\{1,\}/p'`
     if [ -n "$assign_page" ];then
-        ids=`curl -s $url|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
+        ids=`curl -s $url|sed -n 's/.*window.__INITIAL_STATE__ =\(.*\);<\/script><script>.*/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
     else
-        tracks_info=`curl -s $url|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|jshon -e tracksInfo`
+        tracks_info=`curl -s $url|sed -n 's/.*window.__INITIAL_STATE__ =\(.*\);<\/script><script>.*/\1/p'|jshon -e AlbumDetailTrackList -e tracksInfo`
         total=`echo $tracks_info|jshon -e trackTotalCount`
         page_size=`echo $tracks_info|jshon -e pageSize`
         page_count=`expr $total / $page_size`
@@ -169,7 +167,7 @@ if [ "${1:0:4}" == "http" ];then
         for((i=1;i<=$page_count;i++));
         do 
             info "Parse page ${i}/${page_count} ..."
-            ids="$ids `curl -s "${url}p${i}/"|sed -n 's/.*AlbumDetailTrackList":\(.*\)};window.__URL__.*$/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`"
+            ids="$ids `curl -s "${url}p${i}/"|sed -n 's/.*window.__INITIAL_STATE__ =\(.*\);<\/script><script>.*/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`"
         done
     fi
 else 
