@@ -5,18 +5,7 @@
 [![asciicast](https://asciinema.org/a/4jz6NqQIeLZL7weqpZDQ17Wi6.png)](https://asciinema.org/a/4jz6NqQIeLZL7weqpZDQ17Wi6?autoplay=1)
 
 ## 安装
-
-1. 安装jshon
-
-```bash
-wget http://kmkeen.com/jshon/jshon.tar.gz
-tar xzvf json.tar.gz
-cd jshon-20120914
-make
-sudo cp jshon /usr/local/bin/
-```
-PS: jshon下载地址可能会变更，请根据官网提示下载.
-
+1. 确认是否安装Python，一般系统会自带
 2. 安装该工具
 
 ```bash
@@ -51,6 +40,11 @@ PS: 可以使用`xmlyfetcher -h`查看更详细的帮助，注意以上地址是
 
 * 1.0.2
 
+修复无法获取专辑问题
+
+* 1.0.3（2019.9.10）
+
+移除了jshon依赖
 修复无法获取专辑问题
 
 ## 许可

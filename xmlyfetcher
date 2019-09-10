@@ -63,7 +63,7 @@ myos() {
 ###           GROBLE DEFINE           ###
 #########################################
 
-VERSION=1.0.2
+VERSION=1.0.3
 AUTHOR=smallmuou
 
 #########################################
@@ -128,15 +128,18 @@ shift $(($OPTIND - 1))
 ###            MAIN ENTRY             ###
 #########################################
 
-cmdcheck jshon
+# jsonobject key
+decode_json() {
+    echo `cat|python -c 'import json,sys;reload(sys);sys.setdefaultencoding("utf8");print json.dumps(json.load(sys.stdin)[sys.argv[1]],ensure_ascii=False)' $1`
+}
 
 fetch() {
     result=`curl -s "http://mobile.ximalaya.com/v1/track/baseInfo?device=iPhone&trackId=$1"|grep title`
     if [ -n "$result" ];then
-        uid=`echo $result|jshon -e uid|sed 's/\"//g'`
-        title=`echo $result|jshon -e title|sed 's/\"//g'`
-        id=`echo $result|jshon -e trackId|sed 's/\"//g'`
-        url64=`echo $result|jshon -e playUrl64|sed 's/\"//g'|sed 's/\\\//g'`
+        uid=`echo $result|decode_json uid|sed 's/\"//g'`
+        title=`echo $result|decode_json title|sed 's/\"//g'`
+        id=`echo $result|decode_json trackId|sed 's/\"//g'`
+        url64=`echo $result|decode_json playUrl64|sed 's/\"//g'|sed 's/\\\//g'`
 
         info "Fetch $id $title ..."
         if [ -n "$url64" ];then
@@ -147,27 +150,52 @@ fetch() {
     fi
 }
 
+# 提取json，效率低, 暂时不用
+extract() {
+    local content=$1
+    local brace_count=0
+
+    for i in $(seq 1 ${#content})
+    do
+        c=${content:i-1:1}
+        if [ "$c" == "{" ];then
+            brace_count=`expr $brace_count + 1`
+        elif [ "$c" == "}" ];then
+            brace_count=`expr $brace_count - 1`
+            if [ $brace_count -eq 0 ];then
+                echo ${content:0:$i}
+                break;
+            fi
+        fi
+    done
+    echo ''
+}
+
+get_track_list() {
+    local url=$1
+    echo `curl -s $url|sed -n 's/.*\"AlbumDetailTrackList\":\(.*\),"SoundDetailPage".*/\1/p'`
+}
+
 if [ "${1:0:4}" == "http" ];then
     # append / to url
     url=$1
     [ -z "`echo -n $url|sed -n '/\/$/p'`" ] && url="$url/"
 
-    # fix on 2019.8.7
     # check if contain page
     assign_page=`echo -n $1|sed -n '/.*\/p[0-9]\{1,\}/p'`
     if [ -n "$assign_page" ];then
-        ids=`curl -s $url|sed -n 's/.*window.__INITIAL_STATE__ =\(.*\);<\/script><script>.*/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
+        ids=`get_track_list $url|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
     else
-        tracks_info=`curl -s $url|sed -n 's/.*window.__INITIAL_STATE__ =\(.*\);<\/script><script>.*/\1/p'|jshon -e AlbumDetailTrackList -e tracksInfo`
-        total=`echo $tracks_info|jshon -e trackTotalCount`
-        page_size=`echo $tracks_info|jshon -e pageSize`
+        tracks_info=`get_track_list $url|decode_json tracksInfo`
+        total=`echo $tracks_info|decode_json trackTotalCount`
+        page_size=`echo $tracks_info|decode_json pageSize`
         page_count=`expr $total / $page_size`
         [ `expr $total % $page_size` -ne 0 ]&&let page_count++;
 
         for((i=1;i<=$page_count;i++));
         do 
             info "Parse page ${i}/${page_count} ..."
-            ids="$ids `curl -s "${url}p${i}/"|sed -n 's/.*window.__INITIAL_STATE__ =\(.*\);<\/script><script>.*/\1/p'|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`"
+            ids="$ids `get_track_list "${url}p${i}/"|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`"
         done
     fi
 else 
