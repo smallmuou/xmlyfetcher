@@ -150,30 +150,30 @@ fetch() {
     fi
 }
 
-# 提取json，效率低, 暂时不用
-extract() {
-    local content=$1
-    local brace_count=0
-
-    for i in $(seq 1 ${#content})
+extract_json() {
+    OLDIFS=$IFS
+    IFS='}'
+    local content=`cat`
+    local open_brace_count=0
+    local close_brace_count=0
+    local output=''
+    for str in $content
     do
-        c=${content:i-1:1}
-        if [ "$c" == "{" ];then
-            brace_count=`expr $brace_count + 1`
-        elif [ "$c" == "}" ];then
-            brace_count=`expr $brace_count - 1`
-            if [ $brace_count -eq 0 ];then
-                echo ${content:0:$i}
-                break;
-            fi
+        close_brace_count=`expr $close_brace_count + 1`
+        count=`echo $str|grep -o {|wc -l|sed 's/ //g'`
+        open_brace_count=`expr $open_brace_count + $count`
+        output="${output}${str}"'}'
+        if [ $close_brace_count -eq $open_brace_count ];then
+            break
         fi
     done
-    echo ''
+    IFS=$OLDIFS
+    echo $output
 }
 
 get_track_list() {
     local url=$1
-    echo `curl -s $url|sed -n 's/.*\"AlbumDetailTrackList\":\(.*\),"SoundDetailPage".*/\1/p'`
+    echo `curl -s $url|sed -n 's/.*\"AlbumDetailTrackList\":\(.*\)/\1/p'|extract_json`
 }
 
 if [ "${1:0:4}" == "http" ];then
