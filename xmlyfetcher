@@ -171,12 +171,12 @@ EOF`
 }
 
 # parse url to get albumId and trackId
-url=`echo $1|sed -n '/^http/s/\/$//p'`
-
+url=`echo $1|sed -n '/^http/p'`
 if [ -z "$url" ];then
     error 'The url incorrect, please check it'
     exit -1
 fi
+url=`echo $1|sed 's/\/$//p'`
 
 id1=`echo $url|awk -F/ '{print $NF}'`
 id2=`echo $url|awk -F/ '{print $(NF-1)}'`
