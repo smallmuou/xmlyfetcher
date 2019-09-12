@@ -157,7 +157,7 @@ fetch_track_by_id() {
 fetch_track_ids_by_page() {
     local album_id=$1
     local page=$2
-    local content=`curl -s "http://180.153.255.6/mobile/v1/album/track/ts-1534855383505?albumId=$album_id&device=android&isAsc=true&isQueryInvitationBrand=true&pageId=$page&pageSize=20&pre_page=0"`
+    local content=`curl -s "http://180.153.255.6/mobile/v1/album/track/ts-1534855383505?albumId=$album_id&device=android&isAsc=true&isQueryInvitationBrand=true&pageId=$page&pageSize=$page_size&pre_page=0"`
 
 statement=`cat << EOF
 import json,sys
@@ -186,6 +186,7 @@ album_id=''
 track_id=''
 page=`echo $id1|sed -n '/^p/s/^p//p'`
 page_is_digital=`echo $page|sed 's/[0-9]//g'`
+page_size=30
 
 if [ -z "$id1_is_digital" ];then
     if [ -z "$id2_is_digital" ];then
@@ -208,7 +209,7 @@ if [ -n "$track_id" ];then
 elif [ -n "$page" ];then
     track_ids=`fetch_track_ids_by_page $album_id $page`
 else
-    content=`curl -s http://180.153.255.6/mobile/v1/album/track/ts-1534855383505?albumId=$album_id&device=android&isAsc=true&isQueryInvitationBrand=true&pageId=1&pageSize=30&pre_page=0`
+    content=`curl -s http://180.153.255.6/mobile/v1/album/track/ts-1534855383505?albumId=$album_id&device=android&isAsc=true&isQueryInvitationBrand=true&pageId=1&pageSize=$page_size&pre_page=0`
 
 statement=`cat << EOF
 import json,sys
