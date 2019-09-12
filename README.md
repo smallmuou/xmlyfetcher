@@ -6,6 +6,11 @@
 
 ## 安装
 1. 确认是否安装Python，一般系统会自带
+
+```
+python -V
+```
+
 2. 安装该工具
 
 ```bash
@@ -18,6 +23,8 @@ sudo chmod +x /usr/local/bin/xmlyfetcher
 ## 使用
 
 ```bash
+xmlyfetcher 网页路径，可支持如下三种网页路径
+
 # 下载专辑
 xmlyfetcher https://www.ximalaya.com/ertong/12891461/
 
