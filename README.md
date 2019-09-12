@@ -19,33 +19,40 @@ sudo chmod +x /usr/local/bin/xmlyfetcher
 
 ```bash
 # 下载专辑
-xmlyfetcher https://www.ximalaya.com/ertong/260744/
+xmlyfetcher https://www.ximalaya.com/ertong/12891461/
 
-# 下载单个歌曲
-xmlyfetcher 76515823
+# 下载专辑单页
+xmlyfetcher https://www.ximalaya.com/ertong/12891461/p2/
+
+# 下载单个曲目
+
+xmlyfetcher https://www.ximalaya.com/ertong/12891461/211393643
 
 # 下载到指定目录
-xmlyfetcher -o ~/Downloads https://www.ximalaya.com/ertong/260744/
+xmlyfetcher -o ~/Downloads https://www.ximalaya.com/ertong/12891461/211393643
 ```
 PS: 可以使用`xmlyfetcher -h`查看更详细的帮助，注意以上地址是当前有效地址，可能会失效，请从喜马拉雅官网获取最新地址
 
 ## 版本记录
 * 1.0.0
 
-支持下载单个歌曲和专辑
+    - 支持下载单个歌曲和专辑
 
 * 1.0.1
 
-支持下载一个专辑的所有歌曲（支持翻页）
+    - 支持下载一个专辑的所有歌曲（支持翻页）
 
 * 1.0.2
 
-修复无法获取专辑问题
+    - 修复无法获取专辑问题
 
 * 1.0.3（2019.9.10）
 
-移除了jshon依赖
-修复无法获取专辑问题
+    - 移除了jshon依赖
+    - 修复无法获取专辑问题
+
+* 1.1.0（2019.9.12）
+    - 改为接口获取专辑信息，而不是解析HTML
 
 ## 许可
 

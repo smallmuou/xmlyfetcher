@@ -63,7 +63,7 @@ myos() {
 ###           GROBLE DEFINE           ###
 #########################################
 
-VERSION=1.0.3
+VERSION=1.1.0
 AUTHOR=smallmuou
 
 #########################################
@@ -77,27 +77,27 @@ prog=`basename $0`
 cat << EOF
 $prog version $VERSION by $AUTHOR
 
-USAGE: $prog [OPTIONS] albumUrl / [trackId ... ]
+USAGE: $prog [OPTIONS] url
 
 DESCRIPTION:
-    This tool is used to download songs under ximalaya.com. It can download album or single song.
+    This tool is used to download songs under ximalaya.com. It can download album or tracks. The following three type urls are supported.
    
-    1. How to get albumUrl?
-        Go to http://www.ximalaya.com and click a album, it will appear at url address bar, 
-        like http://www.ximalaya.com/96246993/album/13774123/.
-    2. How to get trackId?
-        Go to http://www.ximalaya.com and click a song, it will appear at url address bar, 
-        like http://www.ximalaya.com/96246993/sound/76515823/. The 76515823 is the trackId.
+    1. https://www.ximalaya.com/ertong/12891461/ 
+        it will download all album.
+    2. https://www.ximalaya.com/ertong/12891461/p2/
+        it will download all tracks in page 2.
+    3. https://www.ximalaya.com/ertong/12891461/211393643
+        it only download one track.
 
 OPTIONS:
     -h      Show this help message and exit.
     -o      Assign output directory, if not assign, it will download current directory.
 
 EXAMPLES:
-    $prog http://www.ximalaya.com/10553948/album/260744/        - download all page of this album
-    $prog http://www.ximalaya.com/10553948/album/260744/p2/     - only download page2
-    $prog 76515823
-    $prog -o ~/Downloads http://www.ximalaya.com/10553948/album/260744/
+    $prog https://www.ximalaya.com/ertong/12891461/ 
+    $prog https://www.ximalaya.com/ertong/12891461/p2/
+    $prog https://www.ximalaya.com/ertong/12891461/211393643
+    $prog -o ~/Downloads https://www.ximalaya.com/ertong/12891461/
 
 EOF
 exit 1
@@ -128,12 +128,16 @@ shift $(($OPTIND - 1))
 ###            MAIN ENTRY             ###
 #########################################
 
-# jsonobject key
+[ $# -ne 1 ] && usage
+
+url=$1
+
+# params: jsonobject key
 decode_json() {
     echo `cat|python -c 'import json,sys;reload(sys);sys.setdefaultencoding("utf8");print json.dumps(json.load(sys.stdin)[sys.argv[1]],ensure_ascii=False)' $1`
 }
 
-fetch() {
+fetch_track_by_id() {
     result=`curl -s "http://mobile.ximalaya.com/v1/track/baseInfo?device=iPhone&trackId=$1"|grep title`
     if [ -n "$result" ];then
         uid=`echo $result|decode_json uid|sed 's/\"//g'`
@@ -141,71 +145,91 @@ fetch() {
         id=`echo $result|decode_json trackId|sed 's/\"//g'`
         url64=`echo $result|decode_json playUrl64|sed 's/\"//g'|sed 's/\\\//g'`
 
-        info "Fetch $id $title ..."
         if [ -n "$url64" ];then
             wget "$url64" -O "$dst_dir/$title.mp3"
         fi
-    else 
-        error "The albumUrl or trackId does not exist."
-    fi
-}
-
-extract_json() {
-    OLDIFS=$IFS
-    IFS='}'
-    local content=`cat`
-    local open_brace_count=0
-    local close_brace_count=0
-    local output=''
-    for str in $content
-    do
-        close_brace_count=`expr $close_brace_count + 1`
-        count=`echo $str|grep -o {|wc -l|sed 's/ //g'`
-        open_brace_count=`expr $open_brace_count + $count`
-        output="${output}${str}"'}'
-        if [ $close_brace_count -eq $open_brace_count ];then
-            break
-        fi
-    done
-    IFS=$OLDIFS
-    echo $output
-}
-
-get_track_list() {
-    local url=$1
-    echo `curl -s $url|sed -n 's/.*\"AlbumDetailTrackList\":\(.*\)/\1/p'|extract_json`
-}
-
-if [ "${1:0:4}" == "http" ];then
-    # append / to url
-    url=$1
-    [ -z "`echo -n $url|sed -n '/\/$/p'`" ] && url="$url/"
-
-    # check if contain page
-    assign_page=`echo -n $1|sed -n '/.*\/p[0-9]\{1,\}/p'`
-    if [ -n "$assign_page" ];then
-        ids=`get_track_list $url|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`
     else
-        tracks_info=`get_track_list $url|decode_json tracksInfo`
-        total=`echo $tracks_info|decode_json trackTotalCount`
-        page_size=`echo $tracks_info|decode_json pageSize`
-        page_count=`expr $total / $page_size`
-        [ `expr $total % $page_size` -ne 0 ]&&let page_count++;
-
-        for((i=1;i<=$page_count;i++));
-        do 
-            info "Parse page ${i}/${page_count} ..."
-            ids="$ids `get_track_list "${url}p${i}/"|tr t '\n'|awk -F[:,] '/^rackId/{print $2}'`"
-        done
+        error "The trackId $1 does not exist."
     fi
-else 
-    [ $# -eq 0 ] && usage
-    ids=$@
+}
+
+# param: album_id page
+fetch_track_ids_by_page() {
+    local album_id=$1
+    local page=$2
+    content=`curl -s http://180.153.255.6/mobile/v1/album/track/ts-1534855383505?albumId=$album_id&device=android&isAsc=true&isQueryInvitationBrand=true&pageId=$page&pageSize=20&pre_page=0`
+
+statement=`cat << EOF
+import json,sys
+items = json.loads(sys.argv[1])['data']['list']
+for item in items:
+    print(item['trackId'])
+
+EOF`
+
+    echo `python -c "$statement" "$content"`
+}
+
+# parse url to get albumId and trackId
+url=`echo $1|sed -n '/^http/s/\/$//p'`
+
+if [ -z "$url" ];then
+    error 'The url incorrect, please check it'
+    exit -1
 fi
 
-info "Contain `echo $ids|wc -w|sed 's/^ *//g'` track(s), start fetch ..."
-for id in $ids
+id1=`echo $url|awk -F/ '{print $NF}'`
+id2=`echo $url|awk -F/ '{print $(NF-1)}'`
+id1_is_digital=`echo $id1|sed 's/[0-9]//g'`
+id2_is_digital=`echo $id2|sed 's/[0-9]//g'`
+album_id=''
+track_id=''
+page=`echo $id1|sed -n '/^p/s/^p//p'`
+page_is_digital=`echo $page|sed 's/[0-9]//g'`
+
+if [ -z "$id1_is_digital" ];then
+    if [ -z "$id2_is_digital" ];then
+        track_id=$id1
+        album_id=$id2
+    else
+        album_id=$id1
+    fi
+elif [ -z "$page_is_digital" ];then
+    album_id=$id2
+else
+    error 'The url incorrect, please check it'
+    exit -1
+fi
+
+track_ids=[]
+
+if [ -n "$track_id" ];then
+    track_ids=$track_id
+elif [ -n "$page" ];then
+    track_ids=`fetch_track_ids_by_page $album_id $page`
+else
+    content=`curl -s http://180.153.255.6/mobile/v1/album/track/ts-1534855383505?albumId=$album_id&device=android&isAsc=true&isQueryInvitationBrand=true&pageId=1&pageSize=20&pre_page=0`
+
+statement=`cat << EOF
+import json,sys
+print(json.loads(sys.argv[1])['data']['maxPageId'])
+EOF`
+
+    page_count=`python -c "$statement" "$content"`
+    for p in `seq 1 $page_count`
+    do
+        info "Parse page $p/$page_count ..."
+        track_ids="$track_ids `fetch_track_ids_by_page $album_id $p`"
+    done
+fi
+
+count=`echo $track_ids|wc -w|sed 's/ //g'`
+info "There is(are) $count track(s), start fetch ..."
+i=1
+for id in $track_ids
 do
-    fetch $id
+    info "Fetch track $i/$count ..."
+    fetch_track_by_id $id
 done
+
 
