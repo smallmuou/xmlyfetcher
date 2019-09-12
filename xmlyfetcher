@@ -201,7 +201,7 @@ else
     exit -1
 fi
 
-track_ids=[]
+track_ids=''
 
 if [ -n "$track_id" ];then
     track_ids=$track_id
@@ -219,17 +219,17 @@ EOF`
     for p in `seq 1 $page_count`
     do
         info "Parse page $p/$page_count ..."
-        track_ids="$track_ids `fetch_track_ids_by_page $album_id $p`"
+        track_ids="$track_ids `fetch_track_ids_by_page $album_id $p`"        
     done
 fi
 
 count=`echo $track_ids|wc -w|sed 's/ //g'`
-info "There is(are) $count track(s), start fetch ..."
 i=1
 for id in $track_ids
 do
     info "Fetch track $i/$count ..."
     fetch_track_by_id $id
+    i=`expr $i + 1`
 done
 
 
