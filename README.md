@@ -14,9 +14,8 @@ python -V
 2. 安装该工具
 
 ```bash
-git clone https://github.com/smallmuou/xmlyfetcher.git
-cd xmlyfetcher
-sudo cp xmlyfetcher /usr/local/bin/
+curl https://raw.githubusercontent.com/smallmuou/xmlyfetcher/master/xmlyfetcher
+sudo cp xmlyfetcher /usr/local/bin
 sudo chmod +x /usr/local/bin/xmlyfetcher
 ```
 
