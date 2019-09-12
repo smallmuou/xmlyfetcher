@@ -22,16 +22,15 @@ sudo chmod +x /usr/local/bin/xmlyfetcher
 ## 使用
 
 ```bash
-xmlyfetcher 网页路径，可支持如下三种网页路径
+xmlyfetcher 网页路径，可以直接从浏览器中复制
 
 # 下载专辑
 xmlyfetcher https://www.ximalaya.com/ertong/12891461/
 
-# 下载专辑单页
+# 下载专辑单页(带pxx)
 xmlyfetcher https://www.ximalaya.com/ertong/12891461/p2/
 
 # 下载单个曲目
-
 xmlyfetcher https://www.ximalaya.com/ertong/12891461/211393643
 
 # 下载到指定目录
