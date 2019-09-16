@@ -80,18 +80,18 @@ $prog version $VERSION by $AUTHOR
 USAGE: $prog [OPTIONS] url
 
 DESCRIPTION:
-    This tool is used to download songs under ximalaya.com. It can download album or tracks. The following three type urls are supported.
+    This tool is used to download tracks under ximalaya.com. The following three type urls are supported.
    
     1. https://www.ximalaya.com/ertong/12891461/ 
-        it will download all album.
+        it will download all tracks in album 12891461.
     2. https://www.ximalaya.com/ertong/12891461/p2/
-        it will download all tracks in page 2.
+        it will download the tracks in page 2.
     3. https://www.ximalaya.com/ertong/12891461/211393643
         it only download one track.
 
 OPTIONS:
     -h      Show this help message and exit.
-    -o      Assign output directory, if not assign, it will download current directory.
+    -o      Assign output directory, if not assign, it will download to current directory.
 
 EXAMPLES:
     $prog https://www.ximalaya.com/ertong/12891461/ 
