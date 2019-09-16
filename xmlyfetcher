@@ -134,7 +134,18 @@ url=$1
 
 # params: jsonobject key
 decode_json() {
-    echo `cat|python -c 'import json,sys;reload(sys);sys.setdefaultencoding("utf8");print json.dumps(json.load(sys.stdin)[sys.argv[1]],ensure_ascii=False)' $1`
+
+statement=`cat << EOF
+import json,sys
+reload(sys)
+sys.setdefaultencoding("utf8")
+try:
+    print(json.dumps(json.load(sys.stdin)[sys.argv[1]],ensure_ascii=False))
+except KeyError as e:
+    print('')
+EOF`
+
+    echo `cat|python -c "$statement" "$1"`
 }
 
 fetch_track_by_id() {
@@ -142,11 +153,12 @@ fetch_track_by_id() {
     if [ -n "$result" ];then
         uid=`echo $result|decode_json uid|sed 's/\"//g'`
         title=`echo $result|decode_json title|sed 's/\"//g'`
-        id=`echo $result|decode_json trackId|sed 's/\"//g'`
         url64=`echo $result|decode_json playUrl64|sed 's/\"//g'|sed 's/\\\//g'`
 
         if [ -n "$url64" ];then
             wget "$url64" -O "$dst_dir/$title.mp3"
+        else
+            error "Failed to fetch the track, may be a paid resource."
         fi
     else
         error "The trackId $1 does not exist."
