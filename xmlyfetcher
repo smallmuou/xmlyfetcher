@@ -63,7 +63,7 @@ myos() {
 ###           GROBLE DEFINE           ###
 #########################################
 
-VERSION=1.1.0
+VERSION=1.1.1
 AUTHOR=smallmuou
 
 #########################################
@@ -156,6 +156,7 @@ fetch_track_by_id() {
         url64=`echo $result|decode_json playUrl64|sed 's/\"//g'|sed 's/\\\//g'`
 
         if [ -n "$url64" ];then
+            title=`echo $title|sed 's/\.//g'|sed 's/\///g'`
             wget "$url64" -O "$dst_dir/$title.mp3"
         else
             error "Failed to fetch the track, may be a paid resource."
