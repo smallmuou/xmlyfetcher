@@ -1,17 +1,17 @@
 #!/bin/bash
 #
-# Copyright (C) 2014 Wenva <lvyexuwenfa100@126.com>
-# 
+# Copyright (C) 2023 Wenva <lvyexuwenfa100@126.com>
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is furnished
 # to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -35,7 +35,7 @@ info() {
 }
 
 cmdcheck() {
-    command -v $1>/dev/null 2>&1 || { error >&2 "Please install command $1 first."; exit 1; }   
+    command -v $1>/dev/null 2>&1 || { error >&2 "Please install command $1 first."; exit 1; }
 }
 
 error() {
@@ -63,7 +63,7 @@ myos() {
 ###           GROBLE DEFINE           ###
 #########################################
 
-VERSION=1.1.1
+VERSION=2.0.0
 AUTHOR=smallmuou
 
 #########################################
@@ -77,27 +77,22 @@ prog=`basename $0`
 cat << EOF
 $prog version $VERSION by $AUTHOR
 
-USAGE: $prog [OPTIONS] url
+USAGE: $prog [OPTIONS] albumId type [type-param1 [type-param1 ...]]
 
 DESCRIPTION:
-    This tool is used to download tracks under ximalaya.com. The following three type urls are supported.
-   
-    1. https://www.ximalaya.com/ertong/12891461/ 
-        it will download all tracks in album 12891461.
-    2. https://www.ximalaya.com/ertong/12891461/p2/
-        it will download the tracks in page 2.
-    3. https://www.ximalaya.com/ertong/12891461/211393643
-        it only download one track.
+    This tool is used to download tracks under ximalaya.com.
+
+    albumId - the id of album, you can see from url,like https://www.ximalaya.com/album/2677356, the albumId is 2677356
+    type - all/page/track, when type is all, no type-params required; when type is page, the type-params is the pagenum (start with 1); when type is track, the type-params is trackid;
+    trackId - the id of track, you can see from url,like https://www.ximalaya.com/sound/25202, the trackId is 25202
 
 OPTIONS:
     -h      Show this help message and exit.
-    -o      Assign output directory, if not assign, it will download to current directory.
 
 EXAMPLES:
-    $prog https://www.ximalaya.com/ertong/12891461/ 
-    $prog https://www.ximalaya.com/ertong/12891461/p2/
-    $prog https://www.ximalaya.com/ertong/12891461/211393643
-    $prog -o ~/Downloads https://www.ximalaya.com/ertong/12891461/
+    $prog 12891461 all
+    $prog 12891461 page 1 2 3
+    $prog 12891461 track 211393643
 
 EOF
 exit 1
@@ -112,7 +107,7 @@ while getopts 'o:h' arg; do
             usage
             ;;
         o)
-           dst_dir=$OPTARG 
+           dst_dir=$OPTARG
             ;;
         ?)
             usage
@@ -128,9 +123,7 @@ shift $(($OPTIND - 1))
 ###            MAIN ENTRY             ###
 #########################################
 
-[ $# -ne 1 ] && usage
-
-url=$1
+PAGE_SIZE=30
 
 # params: jsonobject key
 decode_json() {
@@ -148,6 +141,7 @@ EOF`
     echo `cat|python -c "$statement" "$1"`
 }
 
+# param track_id
 fetch_track_by_id() {
     result=`curl -s "http://mobile.ximalaya.com/v1/track/baseInfo?device=iPhone&trackId=$1"|grep title`
     if [ -n "$result" ];then
@@ -166,85 +160,76 @@ fetch_track_by_id() {
     fi
 }
 
-# param: album_id page
-fetch_track_ids_by_page() {
+# param track_id track_id
+fetch_track_by_ids() {
+    for id in $@; do
+        fetch_track_by_id $id
+    done
+}
+
+# param: album_id page_num
+fetch_tracks_by_page() {
     local album_id=$1
-    local page=$2
-    local content=`curl -s "http://180.153.255.6/mobile/v1/album/track/ts-1534855383505?albumId=$album_id&device=android&isAsc=true&isQueryInvitationBrand=true&pageId=$page&pageSize=$page_size&pre_page=0"`
+    local page_num=$2
+    local page_size=$PAGE_SIZE
+    local content=`curl -s "https://www.ximalaya.com/revision/album/v1/getTracksList?albumId=$album_id&pageNum=$page_num&pageSize=$page_size"`
 
 statement=`cat << EOF
 import json,sys
-items = json.loads(sys.argv[1])['data']['list']
+items = json.loads(sys.argv[1])['data']['tracks']
 for item in items:
     print(item['trackId'])
 
 EOF`
 
-    echo `python -c "$statement" "$content"`
+    track_ids=`python -c "$statement" "$content"`
+    fetch_track_by_ids $track_ids
 }
 
-# parse url to get albumId and trackId
-url=`echo $1|sed -n '/^http/p'`
-if [ -z "$url" ];then
-    error 'The url incorrect, please check it'
-    exit -1
-fi
-url=`echo $1|sed 's/\/$//p'`
-
-id1=`echo $url|awk -F/ '{print $NF}'`
-id2=`echo $url|awk -F/ '{print $(NF-1)}'`
-id1_is_digital=`echo $id1|sed 's/[0-9]//g'`
-id2_is_digital=`echo $id2|sed 's/[0-9]//g'`
-album_id=''
-track_id=''
-page=`echo $id1|sed -n '/^p/s/^p//p'`
-page_is_digital=`echo $page|sed 's/[0-9]//g'`
-page_size=30
-
-if [ -z "$id1_is_digital" ];then
-    if [ -z "$id2_is_digital" ];then
-        track_id=$id1
-        album_id=$id2
-    else
-        album_id=$id1
-    fi
-elif [ -z "$page_is_digital" ];then
-    album_id=$id2
-else
-    error 'The url incorrect, please check it'
-    exit -1
-fi
-
-track_ids=''
-
-if [ -n "$track_id" ];then
-    track_ids=$track_id
-elif [ -n "$page" ];then
-    track_ids=`fetch_track_ids_by_page $album_id $page`
-else
-    content=`curl -s http://180.153.255.6/mobile/v1/album/track/ts-1534855383505?albumId=$album_id&device=android&isAsc=true&isQueryInvitationBrand=true&pageId=1&pageSize=$page_size&pre_page=0`
+# param: album_id
+fetch_album_track_count() {
+    local album_id=$1
+    local content=`curl -s "https://www.ximalaya.com/revision/album/v1/getTracksList?albumId=$album_id&pageNum=0&pageSize=1"`
 
 statement=`cat << EOF
 import json,sys
-print(json.loads(sys.argv[1])['data']['maxPageId'])
+count = json.loads(sys.argv[1])['data']['trackTotalCount']
+print(count)
+
 EOF`
+    echo `python -c "$statement" "$content"`
+}
 
-    page_count=`python -c "$statement" "$content"`
-    for p in `seq 1 $page_count`
-    do
-        info "Parse page $p/$page_count ..."
-        #fetch_track_ids_by_page $album_id $p
-        track_ids="$track_ids `fetch_track_ids_by_page $album_id $p`"        
+# param: album_id page_num1 page_num2
+fetch_tracks_by_pages() {
+    local album_id=$1
+    shift
+    for page in $@; do
+        fetch_tracks_by_page $album_id $page
     done
+}
+
+# main
+[ $# -lt 2 ] && usage
+
+album_id=$1
+type=$2
+
+# remove the first two parameters
+shift
+shift
+
+if [ "$type" == "all" ];then
+    count=`fetch_album_track_count $album_id`
+    page_count=$((count/$PAGE_SIZE))
+    info "Total count is $count"
+    for (( i = 0; i <= $page_count+1; i++ )); do
+        fetch_tracks_by_page $album_id $i
+    done
+elif [ "$type" == "page" ];then
+    fetch_tracks_by_pages $album_id $@
+elif [ "$type" == "track" ];then
+    fetch_track_by_ids $@
+else
+    usage
 fi
-
-count=`echo $track_ids|wc -w|sed 's/ //g'`
-i=1
-for id in $track_ids
-do
-    info "Fetch track $i/$count ..."
-    fetch_track_by_id $id
-    i=`expr $i + 1`
-done
-
-
