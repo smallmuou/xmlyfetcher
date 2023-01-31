@@ -30,7 +30,7 @@ xmlyfetcher 专辑ID 类型 参数
 
 all - 下载整个专辑
 page - 下载若干页号，支持传递多个页号，从1开始，每页30
-track - 下载若干歌曲，支持传递多个歌曲ID，歌曲ID可以通过浏览器URL获取，比如点击某个歌曲，其URL为https://www.ximalaya.com/sound/25202，则歌曲ID为25202
+track - 下载若干歌曲，支持传递多个曲目ID，曲目ID可以通过浏览器URL获取，比如点击某个曲目，其URL为https://www.ximalaya.com/sound/25202，则曲目ID为25202
 
 # 下载专辑
 xmlyfetcher 12891461 all
@@ -42,7 +42,28 @@ xmlyfetcher 12891461 page 1 2
 xmlyfetcher 12891461 track 211393643
 
 ```
-PS: 可以使用`xmlyfetcher -h`查看更详细的帮助，注意以上地址是当前有效地址，可能会失效，请从喜马拉雅官网获取最新地址
+PS: 可以使用`xmlyfetcher -h`查看更详细的帮助
+
+```
+xmlyfetcher version 2.0.0 by smallmuou
+
+USAGE: xmlyfetcher [OPTIONS] albumId type [type-param1 [type-param1 ...]]
+
+DESCRIPTION:
+    This tool is used to download tracks under ximalaya.com.
+
+    albumId - the id of album, you can see from url,like https://www.ximalaya.com/album/2677356, the albumId is 2677356
+    type - all/page/track, when type is all, no type-params required; when type is page, the type-params is the pagenum (start with 1); when type is track, the type-params is trackid;
+    trackId - the id of track, you can see from url,like https://www.ximalaya.com/sound/25202, the trackId is 25202
+
+OPTIONS:
+    -h      Show this help message and exit.
+
+EXAMPLES:
+    xmlyfetcher 12891461 all
+    xmlyfetcher 12891461 page 1 2 3
+    xmlyfetcher 12891461 track 211393643
+```
 
 ## 版本记录
 * 2.0.0（2023.1.31）
