@@ -29,8 +29,8 @@ xmlyfetcher 专辑ID 类型 参数
 类型分为3种，分别是all、page、track
 
 all - 下载整个专辑
-page - 下载若干页号，支持传递多个页号，从1开始，每页30
-track - 下载若干歌曲，支持传递多个曲目ID，曲目ID可以通过浏览器URL获取，比如点击某个曲目，其URL为https://www.ximalaya.com/sound/25202，则曲目ID为25202
+page - 下载若干页曲目，支持传递多个页号，从1开始，每页30
+track - 下载若干曲目，支持传递多个曲目ID，曲目ID可以通过浏览器URL获取，比如点击某个曲目，其URL为https://www.ximalaya.com/sound/25202，则曲目ID为25202
 
 # 下载专辑
 xmlyfetcher 12891461 all
