@@ -88,11 +88,13 @@ DESCRIPTION:
 
 OPTIONS:
     -h      Show this help message and exit.
+    -o      Output directory, default is current directory.
 
 EXAMPLES:
     $prog 12891461 all
     $prog 12891461 page 1 2 3
     $prog 12891461 track 211393643
+    $prog -o 'output_directory' 12891461 all
 
 EOF
 exit 1
@@ -130,8 +132,16 @@ decode_json() {
 
 statement=`cat << EOF
 import json,sys
+from platform import python_version
+v = python_version().split('.')
+if int(v[0]) == 3:
+  if int(v[1]) <=3:
+    from imp import reload
+  else:
+    from importlib import reload
 reload(sys)
-sys.setdefaultencoding("utf8")
+if int(v[0]) == 2:
+  sys.setdefaultencoding("utf8")
 try:
     print(json.dumps(json.load(sys.stdin)[sys.argv[1]],ensure_ascii=False))
 except KeyError as e:
