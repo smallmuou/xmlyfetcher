@@ -58,14 +58,21 @@ DESCRIPTION:
 
 OPTIONS:
     -h      Show this help message and exit.
+    -o      Output directory, default is current directory.
 
 EXAMPLES:
     xmlyfetcher 12891461 all
     xmlyfetcher 12891461 page 1 2 3
     xmlyfetcher 12891461 track 211393643
+    xmlyfetcher -o ~/tmp 12891461 track 211393643
 ```
 
 ## 版本记录
+
+* 2.0.1（2023.2.7）
+    - 适配python3
+    - 支持下载到指定目录
+    
 * 2.0.0（2023.1.31）
     - 修复无法下载专辑BUG
     - 支持指定若干页面下载
