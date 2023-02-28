@@ -21,11 +21,11 @@
 # THE SOFTWARE.
 
 spushd() {
-     pushd "$1" 2>&1> /dev/null
+     pushd "$1" > /dev/null 2>&1 || return
 }
 
 spopd() {
-     popd 2>&1> /dev/null
+     popd > /dev/null 2>&1 || return
 }
 
 info() {
@@ -34,8 +34,14 @@ info() {
      echo -e "[${green}INFO${normal}] $1"
 }
 
+notice() {
+     local yellow="\033[1;33m"
+     local normal="\033[0m"
+     echo -e "[${yellow}NOTICE${normal}] $1"
+}
+
 cmdcheck() {
-    command -v $1>/dev/null 2>&1 || { error >&2 "Please install command $1 first."; exit 1; }
+    command -v "$1">/dev/null 2>&1 || { error >&2 "Please install command $1 first."; exit 1; }
 }
 
 error() {
@@ -45,22 +51,22 @@ error() {
 }
 
 curdir() {
-    if [ ${0:0:1} = '/' ] || [ ${0:0:1} = '~' ]; then
-        echo "$(dirname $0)"
-    elif [ -L $0 ];then
-        name=`readlink $0`
-        echo $(dirname $name)
+    if [ "${0:0:1}" = '/' ] || [ "${0:0:1}" = '~' ]; then
+        echo "$(dirname "$0")"
+    elif [ -L "$0" ]; then
+        name=`readlink "$0"`
+        echo $(dirname "$name")
     else
         echo "`pwd`/$(dirname $0)"
     fi
 }
 
 myos() {
-    echo `uname|tr "[:upper:]" "[:lower:]"`
+    echo $(uname|tr "[:upper:]" "[:lower:]")
 }
 
 #########################################
-###           GROBLE DEFINE           ###
+###           GLOBAL DEFINE           ###
 #########################################
 
 VERSION=2.0.1
@@ -117,15 +123,19 @@ while getopts 'o:h' arg; do
     esac
 done
 
-shift $(($OPTIND - 1))
+shift $((OPTIND - 1))
 
-[ ! -d $dst_dir ] && { error "The output directory $dst_dir does not exist."; exit -1; }
+# [ ! -d $dst_dir ] && { error "The output directory $dst_dir does not exist."; exit -1; }
+
+# create output dir if not exist
+[ ! -d "$dst_dir" ] && { mkdir "$dst_dir"; }
 
 #########################################
 ###            MAIN ENTRY             ###
 #########################################
 
 PAGE_SIZE=30
+ALBUMPAGE1=
 
 # params: jsonobject key
 decode_json() {
@@ -144,17 +154,52 @@ EOF`
     echo `cat|python -c "$statement" "$1"`
 }
 
-# param track_id
+# param track_id meta
 fetch_track_by_id() {
+    # index, trackId, title
+    id=$1
+    index=$2
+    if [ "$1" = "$2" ]; then
+        index="-"
+    else
+        index=${index%%_*}
+    fi
     result=`curl -s "http://mobile.ximalaya.com/v1/track/baseInfo?device=iPhone&trackId=$1"|grep title`
-    if [ -n "$result" ];then
-        uid=`echo $result|decode_json uid|sed 's/\"//g'`
-        title=`echo $result|decode_json title|sed 's/\"//g'`
+    if [ -n "$result" ]; then
         url64=`echo $result|decode_json playUrl64|sed 's/\"//g'|sed 's/\\\//g'`
-
-        if [ -n "$url64" ];then
-            title=`echo $title|sed 's/\.//g'|sed 's/\///g'`
-            wget "$url64" -O "$dst_dir/$title.mp3"
+        if [ -n "$url64" ]; then
+            title=`echo $result|decode_json title|sed 's/[\"\.\/\*\|<>\\]//g'`
+            albumId=`echo $result|decode_json albumId`
+            albumTitle=`echo $result|decode_json albumTitle|sed 's/\"//g'`
+            size=`echo $result|decode_json playUrl64Size`
+            playtimes=`echo $result|decode_json playtimes`
+            likes=`echo $result|decode_json likes`
+            createdAt=`echo $result|decode_json createdAt`
+            duration=`echo $result|decode_json duration`
+            intro=`echo $result|decode_json intro|sed 's/\"//g'`
+            fail=0
+            if [ $index = "-" ]; then
+                wget -nv --show-progress "$url64" -O "${dst_dir}/${title}.mp3"
+                fail=$?
+            else
+                if [ $TRACKS_COUNT -lt 90 ]; then
+                    index=$(printf %02d $index)
+                elif [ $TRACKS_COUNT -lt 900 ]; then
+                    index=$(printf %03d $index)
+                elif [ $TRACKS_COUNT -lt 9000 ]; then
+                    index=$(printf %04d $index)
+                else
+                    index=$(printf %05d $index)
+                fi
+                wget -nv --show-progress "$url64" -O "${dst_dir}/${index}_${title}.mp3"
+                fail=$?
+            fi
+            line="${index}\ttrack_${id}\t${title}\t${albumId}\t${albumTitle}\t${size}\t${playtimes}\t${likes}\t${createdAt}\t${duration}\t${intro}\t-"
+            if [ $fail -eq 0 ]; then
+                echo -e "$line" >> "${dst_dir}/index.txt"
+            else
+                echo -e "fail\t${line}" >> "${dst_dir}/album.txt"
+            fi
         else
             error "Failed to fetch the track, may be a paid resource."
         fi
@@ -163,10 +208,33 @@ fetch_track_by_id() {
     fi
 }
 
-# param track_id track_id
+# param track (id or index_track_id)
 fetch_track_by_ids() {
-    for id in $@; do
-        fetch_track_by_id $id
+    local i=0
+    local index=0
+    for line in $@; do
+        i=$((i + 1))
+        id=`echo "$line" | grep -oP '(?<=track_)(\d+)'`
+        if [ -z $id ]; then
+            id=$line
+            index=$i
+        else
+            index=${line%%_*}
+            if [ $SORT -eq 1 ]; then
+                index=$((TRACKS_COUNT - index + 1))
+                # `expr $TRACKS_COUNT - $index + 1`
+            fi
+        fi
+        notice "----- downloading ${index}/${TRACKS_COUNT} ${line} -----"
+        downloaded=""
+        if [ "$DOWNLOADED_TRACKS" ]; then
+            downloaded=`echo $DOWNLOADED_TRACKS | grep "track_${id}"`
+        fi
+        if [ -n "$downloaded" ]; then
+            echo "skip $line"
+        else
+            fetch_track_by_id $id "$line"
+        fi
     done
 }
 
@@ -174,35 +242,74 @@ fetch_track_by_ids() {
 fetch_tracks_by_page() {
     local album_id=$1
     local page_num=$2
+    notice "will download page $page_num"
     local page_size=$PAGE_SIZE
-    local content=`curl -s "https://www.ximalaya.com/revision/album/v1/getTracksList?albumId=$album_id&pageNum=$page_num&pageSize=$page_size"`
+    local content=""
+    content=`curl -s "https://www.ximalaya.com/revision/album/v1/getTracksList?albumId=$album_id&pageNum=$page_num&pageSize=$page_size"`
 
 statement=`cat << EOF
 import json,sys
 items = json.loads(sys.argv[1])['data']['tracks']
 for item in items:
-    print(item['trackId'])
-
+    index = item['index']
+    trackId = item['trackId']
+    title = item['title']
+    createDateFormat = item['createDateFormat']
+    duration = item['duration']
+    playCount = item['playCount']
+    line = "%s_track_%s" % (index, trackId)
+    print(line)
 EOF`
 
-    track_ids=`python -c "$statement" "$content"`
-    fetch_track_by_ids $track_ids
+    tracks=`python -c "$statement" "$content"`
+    fetch_track_by_ids "$tracks"
 }
 
-# param: album_id
-fetch_album_track_count() {
-    local album_id=$1
-    local content=`curl -s "https://www.ximalaya.com/revision/album/v1/getTracksList?albumId=$album_id&pageNum=0&pageSize=1"`
-
+get_album_info() {
 statement=`cat << EOF
-import json,sys
-count = json.loads(sys.argv[1])['data']['trackTotalCount']
-print(count)
+import json,sys,math
+tracks_count = json.loads(sys.argv[1])['data']['trackTotalCount']
+sort = json.loads(sys.argv[1])['data']['sort']
+pages_count = int(math.ceil(tracks_count / $PAGE_SIZE))
+track = json.loads(sys.argv[1])['data']['tracks'][0]
+albumId = track['albumId']
+albumTitle = track['albumTitle']
+anchorId = track['anchorId']
+anchorName = track['anchorName']
+info = 'album [%s\t%s] uploaded by [%s\t%s], %s tracks in %s pages, order by %s' % (albumId, albumTitle, anchorId, anchorName, tracks_count, pages_count, "asc" if sort == 0 else "desc")
+print(info)
 
 EOF`
-    echo `python -c "$statement" "$content"`
+    echo `python -c "$statement" "$ALBUMPAGE1"`
 }
 
+prepare_dstdir() {
+statement=`cat << EOF
+import json,sys,os
+track = json.loads(sys.argv[1])['data']['tracks'][0]
+albumTitle = track['albumTitle']
+anchorName = track['anchorName']
+dst_dir = '%s_%s' % (albumTitle, anchorName)
+dst_dir = dst_dir.replace("/", "~").replace("*", "~").replace("|", "~").replace("<", "~").replace(">", "~")
+if not os.path.exists(dst_dir):
+    os.mkdir(dst_dir)
+print(dst_dir)
+
+EOF`
+    echo `python -c "$statement" "$ALBUMPAGE1"`
+}
+
+load_downloaded_tracks() {
+statement=`cat << EOF
+import codecs, os
+downloaded_tracks=""
+if os.path.exists("${dst_dir}/index.txt"):
+    downloaded_tracks = codecs.open("${dst_dir}/index.txt", "r", "utf-8").read()
+print(downloaded_tracks)
+
+EOF`
+    echo `python -c "$statement"`
+}
 # param: album_id page_num1 page_num2
 fetch_tracks_by_pages() {
     local album_id=$1
@@ -218,21 +325,45 @@ fetch_tracks_by_pages() {
 album_id=$1
 type=$2
 
+ALBUMPAGE1=`curl -s "https://www.ximalaya.com/revision/album/v1/getTracksList?albumId=$album_id&pageNum=0&pageSize=2"`
+TRACKS_COUNT=`echo $ALBUMPAGE1 | grep -oP '(?<=,"trackTotalCount":)(\d+)'`
+# sort: 0-asc，1-desc
+SORT=`echo $ALBUMPAGE1 | grep -oP '(?<=,"sort":)(\d)'`
+(( PAGES_COUNT=(TRACKS_COUNT+PAGE_SIZE-1)/PAGE_SIZE ))
+# PAGES_COUNT=$((TRACKS_COUNT/$PAGE_SIZE))
+# if [ $((PAGES_COUNT*$PAGE_SIZE)) -lt $TRACKS_COUNT ]; then
+#     PAGES_COUNT=`expr $PAGES_COUNT + 1`
+# fi
+[ $dst_dir = . ] && dst_dir=`prepare_dstdir`
+albuminfo=`get_album_info`
+echo "${albuminfo}, download task start at `date`" > "${dst_dir}/album.txt"
+DOWNLOADED_TRACKS=`load_downloaded_tracks`
+echo "will save files to directory [$dst_dir]"
 # remove the first two parameters
 shift
 shift
 
-if [ "$type" == "all" ];then
-    count=`fetch_album_track_count $album_id`
-    page_count=$((count/$PAGE_SIZE))
-    info "Total count is $count"
-    for (( i = 0; i <= $page_count+1; i++ )); do
-        fetch_tracks_by_page $album_id $i
+if [ "$type" == "all" ]
+then
+    notice "will download $TRACKS_COUNT tracks from $PAGES_COUNT pages"
+    for (( i = 1; i <= PAGES_COUNT; i++ )); do
+        fetch_tracks_by_page "$album_id" $i
     done
-elif [ "$type" == "page" ];then
-    fetch_tracks_by_pages $album_id $@
-elif [ "$type" == "track" ];then
+elif [ "$type" == "page" ]
+then
+    fetch_tracks_by_pages "$album_id" $@
+elif [ "$type" == "track" ]
+then
+    TRACKS_COUNT=$#
+    notice "will download $# tracks"
     fetch_track_by_ids $@
 else
     usage
 fi
+
+# 33 ^-- SC2006 (style): Use $(...) notation instead of legacy backticks `...`.
+# 31 ^-- SC2086 (info): Double quote to prevent globbing and word splitting.
+# 7 ^-- SC2005 (style): Useless echo? Instead of 'echo $(cmd)', just use 'cmd'.
+# 6 ^-- SC2046 (warning): Quote this to prevent word splitting.
+# 4 ^-- SC2068 (error): Double quote array expansions to avoid re-splitting elements.
+# 1 ^-- SC2003 (style): expr is antiquated. Consider rewriting this using $((..)), ${} or [[ ]].
